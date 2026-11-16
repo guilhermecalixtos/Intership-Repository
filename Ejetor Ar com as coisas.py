@@ -26,11 +26,10 @@ R = 287 #j/Kg.K - 71.1 (R141-B)
 rho_g = 1.225 #kg/m^3
 Vg = 0.79 #N L/s
 consumo = rho_g*Vg/1000
-print(consumo)
 #===========================================================
-Pg = 0.5e6*1.013     # pressão motriz (Pa) - Pressão até 5 Bar
+Pg = 0.35e6*1.013     # pressão motriz (Pa) - Pressão até 5 Bar
 Tg = 300       # temperatura Entrada (K) Geralmente é uns 400K
-Pe = 20*10**3      # pressão sucção (Pa) - 20KPa
+Pe = 35*10**3      # pressão sucção (Pa) - 20KPa
 Te = 400
 eta_p = 0.95
 ns = 0.85
@@ -42,42 +41,33 @@ Cp = 1005 #j/(Kg.K) 786 (R141-B)
 dt = 1.6*10**-3  #Parametro arbitrario --> Falta decidir ------->Utilizei a do artigo de calculo
 At = math.pi*dt**2/4 #Área da garganta do primeiro bocal
 m_p = Pg*At/math.sqrt(Tg)*math.sqrt(gamma/R*(2/(gamma+1))**((gamma+1)/(gamma-1)))*math.sqrt(eta_p)
-print(m_p)
 #Analise 
 #print("Erro =",abs((m_p-consumo)/consumo))
 
 dp1 = 3*10**-3 #Parametro arbitrario --> Falta decidir ------->Utilizei a do artigo de calculo
 Ap1 = math.pi*dp1**2/4
-print(Ap1)
 Mp1 = symbols('Mp1')
 expr = (Ap1/At)**2 - (1/Mp1**2 *(2/(gamma+1) * (1 + (gamma-1)/2 * Mp1**2))**((gamma+1)/(gamma-1)))
 Mp1_sol = nsolve(expr, Mp1, 3)
-print("Valor de Mach na Saida do Fluido I",Mp1_sol)
-print(Ap1/At)
 
 
 #Pressão na saida do bocal 1
 Pp1 = Pg/(1+(gamma-1)/2*Mp1_sol**2)**(gamma/(gamma-1))
-print("Pressão do Fluido I na saida do Bocal =",Pp1,"")
 
 #Sucção
 Msy = 1
 Psy = Pe/(1+(gamma-1)/2*Msy**2)**(gamma/(gamma-1))
-print("Pressão dos Fluidos no encontro =",Psy,"[Pa]")
 #Psy = Ppy --> Suposição
 Ppy = Psy
 Mpy = symbols('Mpy')
 expr2 = (Ppy/Pp1)-(((1+((gamma-1)/2*Mp1_sol**2))**(gamma/(gamma-1)))/((1+((gamma-1)/2*Mpy**2))**(gamma/(gamma-1))))
 Mpy_sol = nsolve(expr2, Mpy,1.8)
-print("Valor de Mach no encontro de fluidos do Fluido I - Y-Y =",Mpy_sol)
 
 #Áreas
 Num = (phi_p/Mpy_sol)*(2/(gamma+1)*(1+((gamma-1)/2*Mpy_sol**2)))**((gamma+1)/(2*(gamma-1)))
 Den = (1/Mp1_sol)*(2/(gamma+1)*(1+((gamma-1)/2*Mp1_sol**2)))**((gamma+1)/(2*(gamma-1)))
 Apy = Ap1*Num/Den
-print(Apy)
 dpy = math.sqrt(Apy*4/math.pi)
-print("Diametro Y-Y=",dpy)
 d3 = 1*10**(-3)
 
 def razão_d3(d3_c):
@@ -97,7 +87,7 @@ def razão_d3(d3_c):
     except Exception as e:
        
         return 0.0 # Retorna 0.0 em caso de erro --> não atendeu à condição
-razãoo = 0.63
+razãoo = 0.1
 d3_opt = d3  # Chute inicial 
 d_3_passo = 0.00001  # Incrementa de 0.1 mm
 max_d3_mm = 50.0  # Limite superior pra não ficar bizarro
@@ -116,58 +106,74 @@ while d3_opt <= max_d3_mm:
     d3_opt += d_3_passo
 
 if d3_s is not None:
-    print("Diametro 3 otimizado = ",d3_opt)
+    d3_status = f"Diâmetro d3 otimizado: {d3_opt * 1000:.2f} mm"
 else:
-    print(f"\nNão foi possível encontrar um d3 na faixa selecionada")
+    d3_status = "Não foi possível encontrar um d3 na faixa selecionada."
 
-print(d3_opt)
 A3_opt = d3_opt**2/4*math.pi
-print(A3_opt)
 Asy = A3_opt - Apy
 dsy = math.sqrt(Asy*4/math.pi)
-print("Diametro para S Y-Y=",dsy)
-print("Razão A3/At =",A3_opt/At) 
 
 #Vazão Sucção
 ms = Pe*Asy/math.sqrt(Te)*math.sqrt(gamma/R*(2/(gamma+1))**((gamma+1)/(gamma-1)))*math.sqrt(ns)
-print(ms)
 #Razão
-print("Razão =",ms/m_p)
 
 #Temperatura 
 Tpy = Tg/(1+(gamma-1)/2*Mpy_sol**2)
-print(Tpy)
 Tsy = Te/(1+(gamma-1)/2*Msy**2)
-print(Tsy)
 
 #
 a_py = math.sqrt(gamma*R*Tpy) 
 Vpy = Mpy_sol*a_py
-print(Vpy)
 a_sy = math.sqrt(gamma*R*Tsy)
 Vsy = a_sy*Msy
-print(Vsy)
 #Balanço de massa
 Vm = phi_m*(m_p*Vpy+ms*Vsy)/(m_p+ms)
-print(Vm)
 #Balanço de Energia
 Tm = symbols('Tm')
 expr3 = m_p*(Cp*Tpy+Vpy**2/2)+ms*(Cp*Tsy+Vsy**2/2)-(m_p+ms)*(Cp*Tm+Vm**2/2)
 Tm_sol = nsolve(expr3, Tm,300)
-print("Temperatura de mistura =",Tm_sol)
 am = math.sqrt(gamma*R*Tm_sol)
 Mm = Vm/am
-print("Valor de Mach na Mistura = ",Mm)
 
 Pm = Ppy
-print(Pm)
 P3 = Pm*(1+2*gamma/(gamma+1)*(Mm**2-1))
-print(P3)
 M3 = math.sqrt((1+((gamma-1)/2*Mm**2))/(gamma*Mm**2-((gamma-1)/2)))
-print("Mach na Entrada da Saida",M3)
 #Saida --> Pc é obtido experimentalmente, esse valor é o critico
 Pc = P3*(1+(gamma-1)/2*M3**2)**(gamma/gamma-1) # ---> Como já fizemos para ter um omega maximo/Critico não precisa refazer o Loop
-print(Pc)
+
+print(f"""\
+========== RESUMO DOS RESULTADOS ==========
+Consumo de ar informado: {consumo:.6g} kg/s
+Vazão mássica primária (m_p): {m_p:.6g} kg/s
+Área da garganta (At): {At:.6g} m²
+Área de saída do bocal 1 (Ap1): {Ap1:.6g} m²
+Razão de áreas Ap1/At: {Ap1 / At:.6g}
+Número de Mach na saída do bocal 1 (Mp1): {float(Mp1_sol):.6g}
+Pressão do fluido primário na saída do bocal 1 (Pp1): {float(Pp1):.6g} Pa
+Pressão no encontro dos fluidos (Psy): {float(Psy):.6g} Pa
+Número de Mach do fluido primário no encontro (Mpy): {float(Mpy_sol):.6g}
+Área do escoamento primário no encontro (Apy): {float(Apy):.6g} m²
+Diâmetro primário no encontro (dpy): {dpy * 1000:.6g} mm
+{d3_status}
+Área da seção de mistura (A3): {A3_opt:.6g} m²
+Área do escoamento secundário (Asy): {Asy:.6g} m²
+Diâmetro do escoamento secundário (dsy): {dsy * 1000:.6g} mm
+Razão de áreas A3/At: {A3_opt / At:.6g}
+Vazão mássica secundária (ms): {ms:.6g} kg/s
+Razão de arraste (ms/m_p): {ms / m_p:.6g}
+Temperatura do fluido primário no encontro (Tpy): {float(Tpy):.6g} K
+Temperatura do fluido secundário no encontro (Tsy): {float(Tsy):.6g} K
+Velocidade do fluido primário (Vpy): {float(Vpy):.6g} m/s
+Velocidade do fluido secundário (Vsy): {float(Vsy):.6g} m/s
+Velocidade de mistura (Vm): {float(Vm):.6g} m/s
+Temperatura de mistura (Tm): {float(Tm_sol):.6g} K
+Número de Mach na mistura (Mm): {float(Mm):.6g}
+Pressão de mistura (Pm): {float(Pm):.6g} Pa
+Pressão antes da saída (P3): {float(P3):.6g} Pa
+Número de Mach na entrada da saída (M3): {M3:.6g}
+Pressão crítica calculada (Pc): {float(Pc):.6g} Pa
+===========================================""")
 
 import numpy as np
 import math
@@ -270,7 +276,7 @@ Pg_range_pa = np.linspace(0.1e6, 1.0e6, 30) # De 100 kPa a 1000 kPa (1 MPa), com
 
 #razãoo = 0.7 # 
 
-plt.figure
+fig, axes = plt.subplots(1, 3, figsize=(18, 5))
 
 # Gerar uma curva para cada dt
 for dt_val_m, dt_label_mm in zip(dt_valor_plot, dt_valor_plotm):
@@ -279,18 +285,16 @@ for dt_val_m, dt_label_mm in zip(dt_valor_plot, dt_valor_plotm):
         d3_opt_m = achamento_d3_otimo(pg_val, dt_val_m, razãoo)
         d3_otimizado_mm.append(d3_opt_m * 1000 if not np.isnan(d3_opt_m) else np.nan) # Converte para mm para plotar
 
-    plt.plot(Pg_range_pa / 1e3, d3_otimizado_mm, linestyle='-', label=f'dt = {dt_label_mm:.2f} mm')
+    axes[0].plot(Pg_range_pa / 1e3, d3_otimizado_mm, linestyle='-', label=f'dt = {dt_label_mm:.2f} mm')
 
-plt.title(f'Diâmetro Ótimo da Seção de Mistura (d3) vs. Pressão Motriz (Pg))')
-plt.xlabel('Pressão Motriz Pg (kPa)')
-plt.ylabel('Diâmetro Ótimo d3 (mm)')
-plt.grid(True, linestyle='--', alpha=0.3)
-plt.legend(title='Diâmetro da Garganta (dt)')
-plt.tick_params(axis='both', which='major')
-plt.ylim(bottom=0) # eixo y em 
-plt.tight_layout()
+axes[0].set_title('Diâmetro ótimo d3 vs. pressão motriz Pg')
+axes[0].set_xlabel('Pressão motriz Pg (kPa)')
+axes[0].set_ylabel('Diâmetro ótimo d3 (mm)')
+axes[0].grid(True, linestyle='--', alpha=0.3)
+axes[0].legend(title='Diâmetro da garganta (dt)')
+axes[0].tick_params(axis='both', which='major')
+axes[0].set_ylim(bottom=0)
 #plt.savefig("DotimoxPmotriz.png", dpi=300)
-plt.show()
 
 def achamento_d3_otimo_Pe(Pe_val, dt_val, razãoo): 
     global Pg, Te, eta_p, ns, phi_p, phi_m, Cp, dp1, gamma, R, Tg
@@ -386,8 +390,6 @@ Pe_range_pa = np.linspace(10e3, 80e3, 30) # De 100 kPa a 1000 kPa (1 MPa), com 3
 
 razãoo = 0.6 # 
 
-plt.figure
-
 # Gerar uma curva para cada dt
 for dt_val_m, dt_label_mm in zip(dt_valor_plot, dt_valor_plotm):
     d3_otimizado_mm = []
@@ -395,18 +397,16 @@ for dt_val_m, dt_label_mm in zip(dt_valor_plot, dt_valor_plotm):
         d3_opt_m = achamento_d3_otimo_Pe(Pe_val, dt_val_m, razãoo)
         d3_otimizado_mm.append(d3_opt_m * 1000 if not np.isnan(d3_opt_m) else np.nan) # Converte para mm para plotar
 
-    plt.plot(Pe_range_pa / 1e3, d3_otimizado_mm, linestyle='-', label=f'dt = {dt_label_mm:.2f} mm')
+    axes[1].plot(Pe_range_pa / 1e3, d3_otimizado_mm, linestyle='-', label=f'dt = {dt_label_mm:.2f} mm')
 
-plt.title(f'Diâmetro Ótimo da Seção de Mistura (d3) vs. Pressão de Sucção (Pe))')
-plt.xlabel('Pressão Vácuo Pe (kPa)')
-plt.ylabel('Diâmetro Ótimo d3 (mm)')
-plt.grid(True, linestyle='--', alpha=0.3)
-plt.legend(title='Diâmetro da Garganta (dt)')
-plt.tick_params(axis='both', which='major')
-plt.ylim(bottom=0) # eixo y em 
-plt.tight_layout()
+axes[1].set_title('Diâmetro ótimo d3 vs. pressão de sucção Pe')
+axes[1].set_xlabel('Pressão de sucção Pe (kPa)')
+axes[1].set_ylabel('Diâmetro ótimo d3 (mm)')
+axes[1].grid(True, linestyle='--', alpha=0.3)
+axes[1].legend(title='Diâmetro da garganta (dt)')
+axes[1].tick_params(axis='both', which='major')
+axes[1].set_ylim(bottom=0)
 #plt.savefig("DotimoxPsucçao.png", dpi=300)
-plt.show()
 
 def achamento_d3_otimo_Te(Te_val, dt_val, razãoo): 
     global Pg, Pe, eta_p, ns, phi_p, phi_m, Cp, dp1, gamma, R, Tg
@@ -438,7 +438,7 @@ def achamento_d3_otimo_Te(Te_val, dt_val, razãoo):
         Pp1 = Pg / (1 + (gamma - 1) / 2 * Mp1_sol**2)**(gamma / (gamma - 1))
 
         Msy = 1
-        Psy = Pe_val / (1 + (gamma - 1) / 2 * Msy**2)**(gamma / (gamma - 1))
+        Psy = Pe / (1 + (gamma - 1) / 2 * Msy**2)**(gamma / (gamma - 1))
         Ppy = Psy
 
         Mpy = symbols('Mpy')
@@ -474,7 +474,7 @@ def achamento_d3_otimo_Te(Te_val, dt_val, razãoo):
 
             if Asy > 0: # A área secundária deve ser positiva
                 # Calcula a vazão mássica secundária (ms) para o d3_candidate
-                ms = Pe_val * Asy / math.sqrt(Te_val) * math.sqrt(gamma / R * (2 / (gamma + 1))**((gamma + 1) / (gamma - 1))) * math.sqrt(ns)
+                ms = Pe * Asy / math.sqrt(Te_val) * math.sqrt(gamma / R * (2 / (gamma + 1))**((gamma + 1) / (gamma - 1))) * math.sqrt(ns)
                 razão_atual = ms / m_p
 
                 # Se a razão atual for igual ou maior que a razão alvo, encontramos um d3 válido
@@ -497,24 +497,23 @@ Te_range_K = np.linspace(250, 500, 30) # De 100 kPa a 1000 kPa (1 MPa), com 30 p
 
 #razãoo = 0.6 # 
 
-plt.figure
-
 # Gerar uma curva para cada dt
 for dt_val_m, dt_label_mm in zip(dt_valor_plot, dt_valor_plotm):
     d3_otimizado_mm_Te = []
     for Te_val in Te_range_K:
         d3_opt_m_Te = achamento_d3_otimo_Te(Te_val, dt_val_m, razãoo)
-        d3_otimizado_mm_Te.append(d3_opt_m_Te * 1000 if not np.isnan(d3_opt_m) else np.nan) # Converte para mm para plotar
+        d3_otimizado_mm_Te.append(d3_opt_m_Te * 1000 if not np.isnan(d3_opt_m_Te) else np.nan) # Converte para mm para plotar
 
-    plt.plot(Te_range_K , d3_otimizado_mm_Te, linestyle='-', label=f'dt = {dt_label_mm:.2f} mm')
+    axes[2].plot(Te_range_K , d3_otimizado_mm_Te, linestyle='-', label=f'dt = {dt_label_mm:.2f} mm')
 
-plt.title(f'Diâmetro Ótimo da Seção de Mistura (d3) vs. Temperatura de sucção (Te)')
-plt.xlabel('Temperatura de Sucção (Te)')
-plt.ylabel('Diâmetro Ótimo d3 (mm)')
-plt.grid(True, linestyle='--', alpha=0.3)
-plt.legend(title='Diâmetro da Garganta (dt)')
-plt.tick_params(axis='both', which='major')
-plt.ylim(bottom=0) # eixo y em 
-plt.tight_layout()
+axes[2].set_title('Diâmetro ótimo d3 vs. temperatura de sucção Te')
+axes[2].set_xlabel('Temperatura de sucção Te (K)')
+axes[2].set_ylabel('Diâmetro ótimo d3 (mm)')
+axes[2].grid(True, linestyle='--', alpha=0.3)
+axes[2].legend(title='Diâmetro da garganta (dt)')
+axes[2].tick_params(axis='both', which='major')
+axes[2].set_ylim(bottom=0)
 #plt.savefig("DotimoxPsucçao.png", dpi=300)
+
+fig.tight_layout()
 plt.show()
